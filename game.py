@@ -6,6 +6,7 @@ PLAYER_W, PLAYER_H = 20, 28
 BARREL_R, BARREL_SPEED = 10, 140
 WALK_SPEED, CLIMB_SPEED, JUMP_SPEED, GRAVITY = 170, 110, 380, 900
 BG = (15, 15, 25)
+score_popups = []
 
 # (x_left, x_right, y_at_left, y_at_right)
 PLATFORMS = [
@@ -42,13 +43,25 @@ def theme_color(score):
 
 def on_barrel_jumped(player, barrel):
     """Called when the player clears a barrel; add a bonus effect here."""
-    pass
+    score_popups.append(ScorePopup(barrel.pos))
 
 
 def score_multiplier(score):
     """Return a multiplier applied to points earned from clearing a barrel, or None for the default 1x."""
     pass
 
+class ScorePopup:
+    def __init__(self, position):
+        self.pos = pygame.Vector2(position)
+        self.timer = 0.6
+
+    def update(self, dt):
+        self.pos.y -= 35 * dt
+        self.timer -= dt
+
+    def draw(self, screen, font):
+        label = font.render("+100", True, (255, 255, 120))
+        screen.blit(label, label.get_rect(center=self.pos))
 
 class Player:
     def __init__(self):
@@ -223,6 +236,7 @@ def main():
             elif event.type == pygame.KEYDOWN and event.key == pygame.K_r:
                 player.reset()
                 barrels.clear()
+                score_popups.clear()
                 score, lives, state = 0, 3, "play"
         if state == "play":
             player.update(dt, pygame.key.get_pressed())
@@ -244,11 +258,18 @@ def main():
                     barrel.scored = True
                     score += int(100 * (score_multiplier(score) or 1))
                     on_barrel_jumped(player, barrel)
+            for popup in score_popups:
+                popup.update(dt)
+
+            score_popups[:] = [p for p in score_popups if p.timer > 0]
+            
             barrels[:] = [b for b in barrels if b.pos.y < HEIGHT + 30]
             if player.center().distance_to(pygame.Vector2(PRINCESS_POS)) < 24:
                 score += 1000
                 state = "win"
         draw_scene(screen, font, player, barrels, score, lives, state)
+        for popup in score_popups:
+            popup.draw(screen, font)
         pygame.display.flip()
     pygame.quit()
 
